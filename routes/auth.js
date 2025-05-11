@@ -11,4 +11,9 @@ router.post('/signup', (req, res) => {
     res.send('Signup Route');
 });
 
+// ✅ Test route
+router.get('/test', (req, res) => {
+    res.send('✅ Backend is working!');
+});
+
 module.exports = router;
