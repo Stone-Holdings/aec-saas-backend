@@ -1,11 +1,9 @@
-import { supabase } from '../src/supabase.js';
+import { supabase } from '../src/supabase.js'
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { createClient } = require("@supabase/supabase-js");
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 router.post("/signup", async (req, res) => {
   const { email, password } = req.body;
