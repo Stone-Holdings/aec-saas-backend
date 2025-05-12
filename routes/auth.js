@@ -1,3 +1,4 @@
+import { supabase } from '../src/supabase.js';
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
