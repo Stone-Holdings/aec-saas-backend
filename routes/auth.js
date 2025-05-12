@@ -1,42 +1,69 @@
-import express from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { supabase } from '../supabase.js';
-
+const express = require("express");
+const { createClient } = require("@supabase/supabase-js");
+const bcrypt = require("bcrypt");
 const router = express.Router();
 
-// SIGNUP ROUTE
-router.post('/signup', async (req, res) => {
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
+
+// Sign Up Route
+router.post("/signup", async (req, res) => {
   const { email, password } = req.body;
 
+  // Validate input
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and Password are required" });
+  }
+
+  // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  const { data, error } = await supabase
-    .from('users')
-    .insert([{ email, password: hashedPassword }]);
+  try {
+    // Create new user in Supabase
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: hashedPassword,
+    });
 
-  if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
 
-  res.status(201).json({ message: 'User registered successfully', data });
+    res.status(201).json({ message: "User created successfully!", data });
+  } catch (err) {
+    console.error("Error during sign-up:", err);
+    res.status(500).json({ message: "Something went wrong!" });
+  }
 });
 
-// LOGIN ROUTE
-router.post('/login', async (req, res) => {
+// Login Route
+router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .single();
+  // Validate input
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and Password are required" });
+  }
 
-  if (error || !data) return res.status(400).json({ error: 'Invalid email or password' });
+  try {
+    // Check for existing user
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  const passwordMatch = await bcrypt.compare(password, data.password);
-  if (!passwordMatch) return res.status(401).json({ error: 'Incorrect password' });
+    if (error || !data) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-  const token = jwt.sign({ userId: data.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-  res.status(200).json({ token });
+    res.status(200).json({ message: "Login successful!", data });
+  } catch (err) {
+    console.error("Error during login:", err);
+    res.status(500).json({ message: "Something went wrong!" });
+  }
 });
 
 module.exports = router;
