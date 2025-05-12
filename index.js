@@ -6,8 +6,10 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
-const authRoutes = require("./routes/auth"); // This connects your routes
+// Routes
+const authRoutes = require("./routes/auth");
 
+// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
 
