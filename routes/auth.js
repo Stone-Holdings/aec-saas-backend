@@ -1,48 +1,46 @@
-// File: routes/auth.js
-
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const { Pool } = require('pg');
-require('dotenv').config();
-
+const express = require("express");
 const router = express.Router();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const JWT_SECRET = process.env.JWT_SECRET || 'defaultsecret';
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const { createClient } = require("@supabase/supabase-js");
 
-// User signup
-router.post('/signup', async (req, res) => {
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+router.post("/signup", async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
 
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await pool.query('INSERT INTO users (email, password) VALUES ($1, $2)', [email, hashedPassword]);
-    return res.status(201).json({ message: 'User created successfully.' });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Error creating user.' });
-  }
+  const hash = await bcrypt.hash(password, 10);
+
+  const { error } = await supabase
+    .from("users")
+    .insert([{ email, password: hash }]);
+
+  if (error) return res.status(400).json({ error: error.message });
+
+  res.json({ message: "User created successfully." });
 });
 
-// User login
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
 
-  try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (user.rows.length === 0) return res.status(400).json({ error: 'Invalid email or password.' });
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .single();
 
-    const isMatch = await bcrypt.compare(password, user.rows[0].password);
-    if (!isMatch) return res.status(400).json({ error: 'Invalid email or password.' });
-
-    const token = jwt.sign({ userId: user.rows[0].id }, JWT_SECRET, { expiresIn: '1h' });
-    return res.json({ token });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Error logging in user.' });
+  if (error || !user) {
+    return res.status(400).json({ error: "Invalid email or password." });
   }
+
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) {
+    return res.status(400).json({ error: "Invalid email or password." });
+  }
+
+  const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+  res.json({ token });
 });
 
 module.exports = router;
